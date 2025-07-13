@@ -91,6 +91,40 @@ def ingest(
 
 @cli.command()
 @click.option(
+    "--docs-url",
+    required=True,
+    help="Documentation website URL"
+)
+@click.option(
+    "--collection",
+    default="project",
+    help="Vector store collection name"
+)
+def docs(docs_url: str, collection: str) -> None:
+    """Ingest documentation only into existing vector database."""
+    click.echo(f"🔄 Scraping documentation: {docs_url}")
+    
+    try:
+        docs_list = scrape_docs(docs_url)
+        click.echo(f"📖 Found {len(docs_list)} documentation pages")
+
+        # Chunk documentation
+        doc_chunks = chunk_documents(docs_list)
+        click.echo(f"🔧 Created {len(doc_chunks)} documentation chunks")
+
+        # Add to vector store
+        add_documents_to_store(doc_chunks, collection)
+        click.echo(f"💾 Stored documentation chunks in collection '{collection}'")
+        
+    except Exception as e:
+        click.echo(f"⚠️ Failed to scrape documentation: {e}")
+        return
+
+    click.echo("✅ Documentation ingestion complete!")
+
+
+@cli.command()
+@click.option(
     "--host",
     default="0.0.0.0",
     help="Host to bind the server to"

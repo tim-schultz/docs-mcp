@@ -10,7 +10,6 @@ Approach
 """
 from __future__ import annotations
 
-from collections import defaultdict
 from pathlib import Path
 
 from langchain_core.documents import Document
@@ -28,7 +27,7 @@ def summarise_directories(
     Generate directory summaries for a repository.
 
     Args:
-        repo_docs: List of documents from the repository
+        repo_docs: List of documents from the repository (single consolidated doc from gitingest)
         repo_url: URL of the repository for generating links
         output_file: Optional custom output file path
 
@@ -38,52 +37,65 @@ def summarise_directories(
     if output_file is None:
         output_file = README_OUTPUT_DIR / "dir_summary.md"
 
-    # Group docs by directory ('' for root)
-    directories: dict[str, list[Document]] = defaultdict(list)
-    for d in repo_docs:
-        if "path" in d.metadata:
-            dir_path = str(Path(d.metadata["path"]).parent)
-            directories[dir_path].append(d)
+    # Ensure output directory exists
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # With gitingest, we get a single consolidated document
+    if not repo_docs:
+        # Create minimal summary if no docs
+        lines = [
+            "# Repository Overview",
+            f"_Auto-generated summary for {repo_url}_\n",
+            "No content available for analysis."
+        ]
+        output_file.write_text("\n".join(lines))
+        return output_file
+
+    # Get the first (and likely only) document
+    repo_doc = repo_docs[0]
 
     llm = ChatOpenAI(model=LLM_MODEL_NAME, temperature=0.2)
 
-    lines: list[str] = [
-        "# Repository directory overview",
-        f"_Auto‑generated summary for {repo_url}_\n",
+    # Extract directory structure from tree metadata if available
+    tree_structure = repo_doc.metadata.get("tree", "")
+
+    # Create a high-level summary using the consolidated content and tree structure
+    prompt = (
+        "You are generating documentation for an open-source repository. "
+        "Based on the repository content and file tree provided, write a comprehensive "
+        "overview of the project structure and main components (max 200 words).\n\n"
+        "Repository file tree:\n"
+        "-----\n"
+        f"{tree_structure[:1500]}...\n"  # Limit tree size
+        "-----\n\n"
+        "Repository content sample:\n"
+        "-----\n"
+        f"{repo_doc.page_content[:2000]}...\n"  # First 2000 chars
+        "-----"
+    )
+
+    response = llm.invoke(prompt)
+    summary_text = str(response.content).strip() if isinstance(response.content, str) else str(response.content)
+
+    lines = [
+        "# Repository Overview",
+        f"_Auto-generated summary for {repo_url}_\n",
+        summary_text,
+        "\n## Project Structure",
     ]
 
-    for dir_path, docs in sorted(directories.items()):
-        display_path = dir_path or "."
-        # Build context for the LLM – first few hundred chars from up to 3 files
-        sample_context = "\n\n".join(
-            doc.page_content[:800] for doc in docs[:3]
-        )
+    # Add tree structure if available
+    if tree_structure:
+        lines.append("```")
+        lines.append(tree_structure[:2000])  # Limit tree output
+        lines.append("```")
 
-        prompt = (
-            "You are generating documentation for an open‑source repository. "
-            f"Write one concise paragraph (max 80 words) summarizing the overall "
-            f"purpose and main components of the directory `{display_path}`.\n\n"
-            "Context from representative files:\n"
-            "-----\n"
-            f"{sample_context}\n"
-            "-----"
-        )
-
-        response = llm.invoke(prompt)
-        summary_text = str(response.content).strip() if isinstance(response.content, str) else str(response.content)
-
-        lines.append(f"## `{display_path}`")
-        lines.append(summary_text)
-        lines.append("\n**Files**")
-
-        for doc in sorted(docs, key=lambda d: d.metadata.get("path", "")):
-            rel_path = doc.metadata.get("path", "")
-            if repo_url.startswith("http"):
-                link = f"{repo_url.rstrip('/')}/blob/main/{rel_path}"
-                lines.append(f"- [{rel_path}]({link})")
-            else:
-                lines.append(f"- {rel_path}")
-        lines.append("")  # blank line spacer
+    # Add repository summary from metadata
+    if repo_doc.metadata.get("summary"):
+        lines.extend([
+            "\n## Repository Summary",
+            repo_doc.metadata["summary"]
+        ])
 
     output_file.write_text("\n".join(lines))
     return output_file

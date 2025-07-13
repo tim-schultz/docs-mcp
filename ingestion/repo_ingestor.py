@@ -20,21 +20,21 @@ def ingest_repo(repo: str, *, token: str | None = None) -> list[Document]:
     Returns:
         List of Document objects with repo file contents and metadata
     """
-    summary, tree, files = ingest(repo, token=token, output="-")  # stdout -> str objects
-    docs: list[Document] = []
+    summary, tree, content = ingest(repo, token=token)
 
-    for f in files:  # every file dict has keys: path, content, highlight, ...
-        docs.append(
-            Document(
-                page_content=f["content"],
-                metadata={
-                    "source_type": "repo",
-                    "repo": repo,
-                    "path": f["path"],
-                    "summary": summary,
-                    "tree": tree,
-                },
-            )
+    # GitIngest returns consolidated content as a single string
+    # We'll create one document for the entire repository
+    docs: list[Document] = [
+        Document(
+            page_content=content,
+            metadata={
+                "source_type": "repo",
+                "repo": repo,
+                "path": "/",  # Root path for entire repo
+                "summary": summary,
+                "tree": tree,
+            },
         )
+    ]
 
     return docs

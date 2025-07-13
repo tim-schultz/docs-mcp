@@ -37,6 +37,9 @@ def _search(query: str, filter_dict: dict[str, str]) -> str:
     if _vectorstore is None:
         _vectorstore = load_vector_store("project")
 
+    if _vectorstore is None:
+        return "Error: Vector store not found. Run ingestion first."
+
     retriever = _vectorstore.as_retriever(
         search_kwargs={"k": 6, "filter": filter_dict}
     )
@@ -45,6 +48,11 @@ def _search(query: str, filter_dict: dict[str, str]) -> str:
 
 
 TOOLS = [search_repo, search_docs]
+
+
+def get_vector_store(collection_name: str = "project") -> Any | None:
+    """Get the vector store instance for direct access."""
+    return load_vector_store(collection_name)
 
 
 def build_agent() -> AgentExecutor:
