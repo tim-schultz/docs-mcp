@@ -30,7 +30,7 @@ This project uses uv as the Python package manager.
 GitHub repository analysis and MCP server system with modular architecture:
 
 ```
-maiar-mcp/
+docs-mcp/
 ├── main.py                 # CLI entry point with click commands
 ├── config.py               # Configuration settings and paths
 ├── ingestion/              # Data ingestion modules

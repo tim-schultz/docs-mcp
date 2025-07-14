@@ -23,7 +23,7 @@ DEFAULT_CHUNK_SIZE = 800
 DEFAULT_CHUNK_OVERLAP = 200
 
 # LLM model for summaries and agent
-LLM_MODEL_NAME = "gpt-4o-mini"
+LLM_MODEL_NAME = "claude-3-5-sonnet-20241022"
 
 # Server configuration
 DEFAULT_PORT = 8000

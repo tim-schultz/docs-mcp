@@ -10,7 +10,7 @@ from typing import Any
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 
 from config import LLM_MODEL_NAME
 from vectordb.vector_store import load_vector_store
@@ -62,7 +62,7 @@ def build_agent() -> AgentExecutor:
     Returns:
         AgentExecutor instance ready to handle queries
     """
-    llm = ChatOpenAI(model=LLM_MODEL_NAME, temperature=0.0)
+    llm = ChatAnthropic(model_name=LLM_MODEL_NAME, temperature=0.0, timeout=60, stop=None)
 
     prompt = ChatPromptTemplate.from_messages([
         (
